@@ -1,4 +1,6 @@
-#!/bin/sh
 
-echo "PrinceXML"
+#!/usr/bin/env bash
+# bin/detect <build-dir>
+
+echo 'PrinceXML'
 exit 0

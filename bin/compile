@@ -1,21 +1,42 @@
-#!/bin/bash
+#!/usr/bin/env bash
+# bin/compile <build-dir> <cache-dir> <env-dir>
+
+### Configure environment
+
+set -o errexit    # always exit on error
+set -o pipefail   # don't ignore exit codes when piping output
+unset GIT_DIR     # Avoid GIT_DIR leak from previous build steps
+
+### Configure directories
+
+BUILD_DIR=${1:-}
+CACHE_DIR=${2:-}
+ENV_DIR=${3:-}
+
+### Work
+
+if [ -f $ENV_DIR/PRINCE_VERSION ]; then
+  PRINCE_VERSION="$(cat $ENV_DIR/PRINCE_VERSION)"
+fi
 
 PRINCE_VERSION="${PRINCE_VERSION:=11.4}"
+echo "       Using Prince version $PRINCE_VERSION"
 
 echo "-----> Installing PrinceXML $PRINCE_VERSION"
-[ -d .downloads ] || mkdir .downloads
-(cd .downloads; [ -d "prince-$PRINCE_VERSION-linux-amd64-static" ] ||
-  curl -s https://www.princexml.com/download/prince-$PRINCE_VERSION-linux-generic-x86_64.tar.gz | tar xzf -)
 
-if [ -f $3/PRINCE_LICENSE ]; then
+if [ ! -d $CACHE_DIR/prince-$PRINCE_VERSION-linux-amd64-static ]; then
+  echo "       No cache found - downloading Prince"
+  mkdir -p $CACHE_DIR/prince-$PRINCE_VERSION-linux-amd64-static
+  curl -s https://www.princexml.com/download/prince-$PRINCE_VERSION-linux-generic-x86_64.tar.gz | tar xzf - -C $CACHE_DIR
+else
+  echo "       Using cached Prince download"
+fi
+
+if [ -f $ENV_DIR/PRINCE_LICENSE ]; then
   echo "       Configuring license file"
-  cp $3/PRINCE_LICENSE ./.downloads/prince-$PRINCE_VERSION-linux-generic-x86_64/lib/prince/license/license.dat
+  cp $ENV_DIR/PRINCE_LICENSE $CACHE_DIR/prince-$PRINCE_VERSION-linux-generic-x86_64/lib/prince/license/license.dat
 else
   echo "       No license found"
 fi
 
-echo $1 | ./.downloads/prince-$PRINCE_VERSION-linux-generic-x86_64/install.sh
-cat >$1/bin/prince <<EOF
-#!/bin/sh
-exec /app/lib/prince/bin/prince --prefix="/app/lib/prince" "\$@"
-EOF
+echo $BUILD_DIR | $CACHE_DIR/prince-$PRINCE_VERSION-linux-generic-x86_64/install.sh
